@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Ripping reel</title>
+<style>
+  @font-face {
+    font-family: "Inter";
+    src: url("file:///usr/share/fonts/truetype/macos/Inter-Regular.ttf") format("truetype");
+    font-weight: 400;
+  }
+  @font-face {
+    font-family: "Inter";
+    src: url("file:///usr/share/fonts/truetype/macos/Inter-Medium.ttf") format("truetype");
+    font-weight: 500;
+  }
+  @font-face {
+    font-family: "Inter";
+    src: url("file:///usr/share/fonts/truetype/macos/Inter-SemiBold.ttf") format("truetype");
+    font-weight: 600;
+  }
+  @font-face {
+    font-family: "Inter";
+    src: url("file:///usr/share/fonts/truetype/macos/Inter-Bold.ttf") format("truetype");
+    font-weight: 700;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    width: 1080px;
+    height: 1920px;
+    overflow: hidden;
+    background: #000;
+    font-family: Inter, sans-serif;
+  }
+  #stage {
+    position: relative;
+    width: 1080px;
+    height: 1920px;
+    overflow: hidden;
+    background: #eef1f6;
+  }
+  #bg-light, #bg-dark {
+    position: absolute;
+    inset: 0;
+  }
+  #bg-light {
+    background:
+      radial-gradient(900px 700px at 50% 18%, #ffffff 0%, rgba(255,255,255,0) 70%),
+      linear-gradient(180deg, #f7f8fb 0%, #e7ebf2 100%);
+  }
+  #bg-dark {
+    opacity: 0;
+    background:
+      radial-gradient(800px 600px at 50% 22%, #243044 0%, rgba(20,24,32,0) 68%),
+      linear-gradient(180deg, #1a2030 0%, #10141c 100%);
+  }
+  #squares { position: absolute; inset: 0; pointer-events: none; }
+  .sq {
+    position: absolute;
+    border-radius: 10px;
+    background: #d5dbe6;
+    left: 0;
+    top: 0;
+  }
+  #bg-dark.show-sq .sq { background: #2a3344; }
+
+  #logo {
+    position: absolute;
+    top: 54px;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    z-index: 8;
+  }
+  #logo img.mark {
+    width: 54px;
+    height: 54px;
+    display: block;
+  }
+  #logo .word {
+    font-weight: 700;
+    font-size: 40px;
+    letter-spacing: -0.04em;
+    color: #16181d;
+  }
+  #logo.on-dark .word { color: #fff; }
+  #logo.on-dark img.mark { filter: invert(1); }
+
+  .scene {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 150px;
+    z-index: 4;
+    opacity: 0;
+  }
+  .cap {
+    padding: 0 72px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 78px;
+    line-height: 0.98;
+    letter-spacing: -0.045em;
+    color: #14171c;
+  }
+  .cap.sm { font-size: 68px; }
+  .cap em {
+    font-style: normal;
+    color: #2563eb;
+  }
+  .on-dark-cap { color: #fff; }
+  .on-dark-cap em { color: #6ea2ff; }
+
+  .card-wrap {
+    margin-top: 36px;
+    display: flex;
+    justify-content: center;
+    padding: 0 70px;
+  }
+  .card {
+    width: 860px;
+    background: #fff;
+    border-radius: 32px;
+    box-shadow: 0 30px 70px rgba(20, 28, 45, 0.12);
+    padding: 28px 32px 30px;
+    color: #1a1d24;
+  }
+  .card.dark {
+    background: #1c2330;
+    color: #f4f7fb;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+  }
+  .kicker {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 18px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #8b93a3;
+    font-weight: 600;
+    margin-bottom: 18px;
+  }
+  .live {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #16a34a;
+    letter-spacing: 0;
+    text-transform: none;
+    font-size: 18px;
+  }
+  .live i {
+    width: 10px; height: 10px; border-radius: 50%; background: #22c55e; display: inline-block;
+  }
+  .race-row, .tool-row, .svc-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 26px;
+    color: #6b7280;
+  }
+  .race-row.on, .tool-row.on {
+    background: #eef4ff;
+    color: #1d4ed8;
+  }
+  .bar {
+    margin-left: auto;
+    height: 8px;
+    border-radius: 99px;
+    background: #e5e7eb;
+    width: 120px;
+    overflow: hidden;
+  }
+  .bar span { display: block; height: 100%; background: #cbd5e1; border-radius: 99px; }
+  .race-row.on .bar { background: #dbe7ff; width: 180px; }
+  .race-row.on .bar span { background: #2563eb; width: 92%; }
+  .mark-dot {
+    width: 28px; height: 28px; border-radius: 8px; background: #e5e7eb; flex: none;
+  }
+  .mark-dot.blue { background: #2563eb; }
+
+  .win-top {
+    display: flex; align-items: center; gap: 8px;
+    background: #f3f4f6; border-radius: 14px; padding: 10px 14px; margin-bottom: 16px;
+    color: #6b7280; font-size: 18px; font-weight: 600;
+  }
+  .card.dark .win-top { background: #121722; color: #9aa3b5; }
+  .dots { display: flex; gap: 6px; }
+  .dots i { width: 10px; height: 10px; border-radius: 50%; background: #d1d5db; display: block; }
+  .dots i:nth-child(1) { background: #f87171; }
+  .dots i:nth-child(2) { background: #fbbf24; }
+  .dots i:nth-child(3) { background: #34d399; }
+
+  .big-name { font-size: 42px; font-weight: 700; letter-spacing: -0.04em; }
+  .sub { color: #8b93a3; font-weight: 600; font-size: 20px; margin-top: 4px; }
+  .pill {
+    display: inline-flex; align-items: center;
+    background: #e8f0ff; color: #2563eb;
+    border-radius: 999px; padding: 8px 16px;
+    font-weight: 700; font-size: 22px;
+  }
+  .pill.red { background: #fee2e2; color: #dc2626; }
+  .pill.gray { background: #f3f4f6; color: #4b5563; }
+  .line {
+    height: 14px; border-radius: 8px; background: #eef2f7; margin-top: 12px;
+  }
+  .line.s { width: 46%; }
+  .line.m { width: 72%; }
+  .line.l { width: 88%; }
+  .progress {
+    margin-top: 18px; height: 12px; background: #e8eef8; border-radius: 99px; overflow: hidden;
+  }
+  .progress span {
+    display: block; height: 100%; width: 38%;
+    background: linear-gradient(90deg, #93c5fd, #2563eb);
+  }
+  .quote {
+    font-size: 30px; font-weight: 700; letter-spacing: -0.03em; line-height: 1.25;
+  }
+  .btn {
+    display: inline-block; margin-top: 18px;
+    background: #2563eb; color: #fff; font-weight: 700;
+    border-radius: 999px; padding: 14px 22px; font-size: 22px;
+  }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .mini {
+    background: #fff; border-radius: 22px; padding: 18px 20px;
+    box-shadow: 0 12px 30px rgba(16,24,40,.06);
+    display: flex; align-items: center; justify-content: space-between;
+    font-weight: 700; font-size: 26px;
+  }
+  .mini .left { display: flex; align-items: center; gap: 12px; }
+  .chart-box { margin-top: 8px; }
+  .chart-box svg { width: 100%; height: 180px; display: block; }
+  .legend { display: flex; justify-content: space-between; color: #9aa3b2; font-weight: 600; font-size: 18px; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .stat {
+    background: #121722; border-radius: 20px; padding: 18px;
+  }
+  .stat b { display: block; font-size: 22px; margin-bottom: 8px; }
+  .sign {
+    margin: 10px auto 0; width: 100%;
+    background: #fff; border-radius: 28px; padding: 28px 22px;
+    box-shadow: 0 16px 40px rgba(16,24,40,.08);
+    text-align: center; font-size: 34px; font-weight: 700; letter-spacing: -0.03em;
+  }
+  .qmark {
+    width: 64px; height: 64px; border-radius: 50%;
+    border: 4px solid #ef4444; color: #ef4444;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 36px; margin-left: auto;
+  }
+  .coins { display: flex; align-items: flex-end; justify-content: center; gap: 80px; padding: 10px 0 6px; }
+  .coin-col { text-align: center; font-weight: 700; }
+  .coin {
+    border-radius: 50%; margin: 0 auto 12px;
+    box-shadow: inset 0 -8px 0 rgba(0,0,0,.08);
+  }
+  .coin.sm { width: 90px; height: 90px; background: #c5cad3; }
+  .coin.lg { width: 170px; height: 170px; background: radial-gradient(circle at 35% 35%, #8eb6ff, #2563eb 62%); }
+  .coin-col span { display: block; color: #6b7280; font-size: 20px; }
+  .services { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  .services span {
+    background: #f3f6fb; border-radius: 16px; padding: 16px 18px;
+    font-weight: 700; font-size: 24px;
+  }
+  .stamp {
+    display: inline-block; border: 6px solid #16a34a; color: #16a34a;
+    font-weight: 800; letter-spacing: 0.08em; font-size: 42px;
+    padding: 6px 18px; border-radius: 12px; transform: rotate(-8deg);
+  }
+  .strike { text-decoration: line-through; color: #ef4444; }
+  .comment {
+    margin-top: 8px; background: #1c2330; color: #fff;
+    border-radius: 999px; display: flex; align-items: center; gap: 14px;
+    padding: 16px 18px 16px 22px; font-size: 32px; font-weight: 700;
+  }
+  .send {
+    margin-left: auto; width: 54px; height: 54px; border-radius: 50%;
+    background: #2563eb; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 26px;
+  }
+  .hash { color: #60a5fa; }
+  .deck {
+    background: #121722; border-radius: 24px; padding: 22px;
+  }
+  .deck-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .ap {
+    font-weight: 800; letter-spacing: 0.12em; color: #60a5fa; font-size: 28px;
+  }
+  .copilot {
+    margin-top: 16px; text-align: center; font-weight: 800; letter-spacing: 0.14em;
+    color: #6b7280; font-size: 28px; text-decoration: line-through;
+  }
+  .end-lockup { text-align: center; }
+  .end-lockup img.mark { width: 112px; height: 112px; }
+  .end-lockup .brand {
+    font-size: 68px; font-weight: 700; letter-spacing: -0.05em; margin-top: 4px; color: #14171c;
+  }
+  .end-lockup .url { color: #9aa3b2; font-weight: 600; font-size: 24px; margin-top: -4px; }
+  .profile {
+    width: 760px; margin: 18px auto 0; display: block; border-radius: 26px;
+    box-shadow: 0 24px 50px rgba(16,24,40,.12);
+  }
+  #avatar {
+    position: absolute;
+    left: 50%;
+    bottom: -70px;
+    width: 1000px;
+    height: 1140px;
+    z-index: 6;
+    pointer-events: none;
+  }
+  #avatar img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    object-position: center bottom;
+  }
+  #ground {
+    position: absolute;
+    left: 50%;
+    bottom: 18px;
+    width: 520px;
+    height: 40px;
+    transform: translateX(-50%);
+    background: radial-gradient(ellipse at center, rgba(0,0,0,.28), rgba(0,0,0,0) 70%);
+    z-index: 5;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg-light"></div>
+  <div id="bg-dark"></div>
+  <div id="squares"></div>
+  <div id="logo">
+    <img class="mark" src="assets/ripping-mark.png" alt="" />
+    <div class="word">Ripping</div>
+  </div>
+  <div id="scenes"></div>
+  <div id="ground"></div>
+  <div id="avatar"></div>
+</div>
+<script>
+const POSES = ["explain","caution","smile","point","two","three","shrug","focus"];
+const POSE_AT = [
+  [0.0, "explain"],
+  [4.3, "caution"],
+  [7.6, "focus"],
+  [11.0, "shrug"],
+  [14.4, "explain"],
+  [17.6, "smile"],
+  [20.3, "point"],
+  [24.8, "explain"],
+  [28.3, "caution"],
+  [32.6, "point"],
+  [36.0, "smile"],
+  [38.8, "focus"],
+  [43.0, "explain"],
+  [45.2, "point"],
+  [49.4, "two"],
+  [55.4, "three"],
+  [59.3, "smile"],
+  [64.0, "point"],
+  [67.6, "smile"]
+];
+
+const raceCard = `
+  <div class="card">
+    <div class="kicker"><span>AI startups · race</span><span class="live"><i></i> live</span></div>
+    <div class="race-row"><span class="mark-dot"></span> Tabwise <div class="bar"><span style="width:46%"></span></div></div>
+    <div class="race-row"><span class="mark-dot"></span> Pitchly <div class="bar"><span style="width:40%"></span></div></div>
+    <div class="race-row on"><span class="mark-dot blue"></span> Quillo <div class="bar"><span></span></div></div>
+    <div class="race-row"><span class="mark-dot"></span> Scribbly <div class="bar"><span style="width:34%"></span></div></div>
+    <div class="race-row"><span class="mark-dot"></span> Hirebot <div class="bar"><span style="width:28%"></span></div></div>
+  </div>`;
+
+const serviceCard = `
+  <div class="card">
+    <div class="kicker"><span>Quillo · finance team</span></div>
+    <div class="big-name">Your books, closed<br>every month.</div>
+    <div class="sub" style="margin:14px 0 6px">Bookkeeping and payroll, done.</div>
+    <div class="line l"></div><div class="line m"></div><div class="line s"></div>
+    <div class="btn">Book a call</div>
+  </div>`;
+
+const loseCard = `
+  <div class="card">
+    <div class="win-top"><span class="dots"><i></i><i></i><i></i></span> tabwise · build <span class="live" style="margin-left:auto"><i></i> live</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><div class="big-name">Tabwise</div><div class="sub">AI accounting copilot</div></div>
+      <span class="pill">AI app</span>
+    </div>
+    <div class="progress"><span></span></div>
+    <div class="sub" style="margin-top:10px">deploy v1 · losing</div>
+    <div class="chart-box">
+      <svg viewBox="0 0 760 180" fill="none">
+        <path d="M20 40 C 140 50, 220 70, 320 120 S 520 170, 740 160" stroke="#ef4444" stroke-width="8" stroke-linecap="round"/>
+        <path d="M20 150 C 160 140, 280 100, 420 70 S 600 30, 740 24" stroke="#2563eb" stroke-width="8" stroke-linecap="round"/>
+      </svg>
+      <div class="legend"><span>v1 copilot</span><span style="color:#2563eb">v2 autopilot</span></div>
+    </div>
+  </div>`;
+
+const sequoiaCard = `
+  <div class="card dark">
+    <div class="win-top"><span class="dots"><i></i><i></i><i></i></span> sequoiacap.com / julien-bek</div>
+    <div style="background:#f7f4ea;color:#1a1d24;border-radius:18px;padding:28px 22px;text-align:center">
+      <div style="font-size:48px;font-weight:700;letter-spacing:0.12em">JULIEN BEK</div>
+      <div class="sub" style="letter-spacing:0.18em">SEED / EARLY</div>
+    </div>
+    <div class="sub" style="margin-top:16px">Partner at Sequoia</div>
+    <div class="line l" style="background:#2a3344"></div>
+    <div class="line m" style="background:#2a3344"></div>
+  </div>`;
+
+const backCard = `
+  <div class="card" style="background:transparent;box-shadow:none;padding:10px 0 0;position:relative">
+    <div class="qmark" style="position:absolute;right:24px;top:0">?</div>
+    <div class="sign" style="margin-top:28px">services <span style="color:#2563eb">←</span> software</div>
+  </div>`;
+
+const scaleCard = `
+  <div class="card dark">
+    <div class="two-col">
+      <div class="stat">
+        <b>software</b>
+        <svg viewBox="0 0 280 120" width="100%" height="110">
+          <path d="M10 90 C 60 88, 90 70, 140 40 S 220 16, 260 12" stroke="#60a5fa" stroke-width="6" fill="none" stroke-linecap="round"/>
+        </svg>
+        <div class="sub">users scale up</div>
+      </div>
+      <div class="stat">
+        <b>services</b>
+        <svg viewBox="0 0 280 120" width="100%" height="110">
+          <path d="M10 70 H 80 V 78 H 150 V 66 H 260" stroke="#e5e7eb" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div class="sub">headcount stays flat</div>
+      </div>
+    </div>
+  </div>`;
+
+const agencyCard = `
+  <div class="card">
+    <div class="kicker"><span>Quillo · console</span><span>4 agents</span></div>
+    <div class="big-name">Your books,<br>closed every month.</div>
+    <div class="sub" style="margin-top:12px">To the customer, it looks like an agency.</div>
+    <div class="btn">Book a call</div>
+  </div>`;
+
+const toolsCard = `
+  <div class="card" style="background:transparent;box-shadow:none;padding:6px 0">
+    <div class="stack">
+      <div class="mini"><div class="left"><span class="mark-dot blue"></span> Pitchly</div><span class="pill">AI sales tool</span></div>
+      <div class="mini"><div class="left"><span class="mark-dot"></span> Scribbly</div><span class="pill">AI writing tool</span></div>
+      <div class="mini"><div class="left"><span class="mark-dot blue"></span> Tabwise</div><span class="pill">AI accounting tool</span></div>
+    </div>
+  </div>`;
+
+const fasterCard = `
+  <div class="card">
+    <div class="kicker"><span>tabwise · copilot</span><span>3 suggestions</span></div>
+    <div class="tool-row on"><span class="mark-dot blue"></span> Categorize as supplies?</div>
+    <div class="tool-row"><span class="mark-dot"></span> Match to invoice no. 2297</div>
+    <div class="tool-row"><span class="mark-dot"></span> Flag duplicate?</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:18px">
+      <div class="big-name" style="font-size:40px">work <em style="color:#2563eb;font-style:normal">faster</em></div>
+      <div style="text-align:right"><div style="font-size:40px;font-weight:800;color:#2563eb">3h 25m</div><div class="sub">still left</div></div>
+    </div>
+  </div>`;
+
+const twistCard = `
+  <div class="card dark" style="text-align:center">
+    <div class="sub">what they sell</div>
+    <div class="big-name" style="margin:16px 0"><span class="strike">tools</span></div>
+    <div class="pill red">companies don't want this</div>
+    <div class="line l" style="background:#2a3344;margin-left:auto;margin-right:auto"></div>
+    <div class="line m" style="background:#2a3344;margin-left:auto;margin-right:auto"></div>
+  </div>`;
+
+const jobCard = `
+  <div class="card">
+    <div class="kicker"><span>the outcome</span></div>
+    <div class="mini" style="box-shadow:none;background:#f4f7fb;margin-bottom:12px"><div class="left">Best candidates, on the desk</div></div>
+    <div class="mini" style="box-shadow:none;background:#f4f7fb;margin-bottom:18px"><div class="left">The contract, drafted</div></div>
+    <div style="text-align:center"><span class="stamp">DONE</span></div>
+  </div>`;
+
+const sixCard = `
+  <div class="card">
+    <div class="kicker"><span>sequoia</span><span>for every $1 of software</span></div>
+    <div class="coins">
+      <div class="coin-col"><div class="coin sm"></div><b>1</b><span>software</span></div>
+      <div class="coin-col"><div class="coin lg"></div><b style="color:#2563eb">6</b><span>services</span></div>
+    </div>
+  </div>`;
+
+const jobMoneyCard = `
+  <div class="card dark" style="text-align:center">
+    <div class="sub">the money skips the tool</div>
+    <div class="big-name" style="margin-top:18px">It's in the <span style="color:#6ea2ff">job.</span></div>
+    <svg viewBox="0 0 760 140" width="100%" height="130" style="margin-top:10px">
+      <path d="M40 70 H250" stroke="#6b7280" stroke-width="6"/>
+      <path d="M250 70 C 360 70, 400 30, 520 30 H700" stroke="#60a5fa" stroke-width="6" fill="none"/>
+      <circle cx="250" cy="70" r="18" fill="#374151"/>
+      <circle cx="700" cy="30" r="18" fill="#2563eb"/>
+    </svg>
+    <div class="legend"><span>tool</span><span style="color:#60a5fa">job</span></div>
+  </div>`;
+
+const step1Card = `
+  <div class="card dark">
+    <div class="kicker"><span>Step 1</span><span>services people already buy</span></div>
+    <div class="services">
+      <span style="background:#243044;color:#fff">Bookkeeping</span>
+      <span style="background:#243044;color:#fff">Recruiting</span>
+      <span style="background:#243044;color:#fff">Content</span>
+      <span style="background:#243044;color:#fff">Paperwork</span>
+    </div>
+  </div>`;
+
+const step2Card = `
+  <div class="card">
+    <div class="kicker"><span>Step 2</span></div>
+    <div class="mini" style="background:#fff5f5">
+      <div class="left"><span class="pill red">STOP</span> $50 / seat</div>
+    </div>
+    <div class="quote" style="margin-top:22px">“We close your books every month.”</div>
+    <div class="sub" style="margin-top:8px">Sell the outcome.</div>
+  </div>`;
+
+const step3Card = `
+  <div class="card dark">
+    <div class="kicker"><span>Step 3</span><span>behind the scenes</span></div>
+    <div class="svc-row"><span class="mark-dot blue"></span> AI does most of the work</div>
+    <div class="svc-row"><span class="mark-dot blue"></span> You charge a service price</div>
+    <div class="svc-row"><span class="mark-dot"></span> Not a software price</div>
+  </div>`;
+
+const marketCard = `
+  <div class="card">
+    <div class="kicker"><span>same company, two views</span></div>
+    <div class="two-col">
+      <div style="background:#f4f7fb;border-radius:18px;padding:16px">
+        <div class="sub">customer sees</div>
+        <div class="big-name" style="font-size:32px">an agency</div>
+      </div>
+      <div style="background:#eef4ff;border-radius:18px;padding:16px">
+        <div class="sub">you run</div>
+        <div class="big-name" style="font-size:32px;color:#2563eb">software</div>
+      </div>
+    </div>
+    <div class="quote" style="margin-top:20px;text-align:center">a <em style="color:#2563eb;font-style:normal">6×</em> bigger market</div>
+  </div>`;
+
+const autoCard = `
+  <div class="card dark">
+    <div class="deck">
+      <div class="deck-row"><span class="ap">AUTOPILOT</span><span class="pill">engaged</span></div>
+      <svg viewBox="0 0 760 120" width="100%" height="110">
+        <path d="M20 90 C 120 80, 180 70, 260 40 S 460 10, 740 16" stroke="#60a5fa" stroke-width="7" fill="none" stroke-linecap="round"/>
+      </svg>
+      <div class="copilot">COPILOT</div>
+    </div>
+  </div>`;
+
+const ripCard = `
+  <div class="card dark">
+    <div class="sub" style="margin-bottom:8px">growth</div>
+    <svg viewBox="0 0 760 150" width="100%" height="140">
+      <path d="M20 120 C 140 110, 200 90, 320 70 S 520 20, 740 16" stroke="#60a5fa" stroke-width="7" fill="none"/>
+    </svg>
+    <div class="comment"><span class="hash">#</span> RIP <span class="send">↑</span></div>
+  </div>`;
+
+const endCard = `
+  <div class="end-lockup">
+    <img class="mark" src="assets/ripping-mark.png" alt="Ripping" />
+    <div class="brand">Ripping</div>
+    <div class="url">getripping.com</div>
+    <img class="profile" src="assets/profile-card.png" alt="getripping" />
+  </div>`;
+
+const SCENES = [
+  { t0: 0.00, t1: 2.55, theme: "light", cap: `The next<br><em>trillion-dollar</em><br>company`, card: raceCard },
+  { t0: 2.45, t1: 4.45, theme: "light", cap: `hiding behind<br>a <em>service.</em>`, card: serviceCard },
+  { t0: 4.35, t1: 7.70, theme: "light", cap: `you're building<br>the version<br>that <em>loses.</em>`, card: loseCard, capClass: "sm" },
+  { t0: 7.60, t1: 11.15, theme: "dark", cap: `It's from<br><em>Julien Bek,</em><br>Sequoia.`, card: sequoiaCard },
+  { t0: 11.05, t1: 14.15, theme: "light", cap: `At first, it<br>sounds <em>backwards.</em>`, card: backCard },
+  { t0: 14.05, t1: 17.55, theme: "dark", cap: `<em>software</em> scales.<br>services don't.`, card: scaleCard },
+  { t0: 17.45, t1: 20.35, theme: "light", cap: `pretend to be<br>an <em>agency?</em>`, card: agencyCard },
+  { t0: 20.25, t1: 24.85, theme: "light", cap: `An AI sales tool.<br>An AI writing tool.<br>An AI <em>accounting</em> tool.`, card: toolsCard, capClass: "sm" },
+  { t0: 24.75, t1: 28.25, theme: "light", cap: `Tools. Copilots.<br>They help you<br><em>work faster.</em>`, card: fasterCard, capClass: "sm" },
+  { t0: 28.15, t1: 32.55, theme: "dark", cap: `Companies<br>don't want<br><em>tools.</em>`, card: twistCard },
+  { t0: 32.45, t1: 37.90, theme: "light", cap: `They want the<br><em>job</em> done.`, card: jobCard },
+  { t0: 37.80, t1: 43.05, theme: "light", cap: `For every dollar<br>on software,<br><em>six</em> on services.`, card: sixCard, capClass: "sm" },
+  { t0: 42.95, t1: 45.25, theme: "dark", cap: `The money is<br>in the <em>job.</em>`, card: jobMoneyCard },
+  { t0: 45.15, t1: 49.45, theme: "dark", cap: `<em>One.</em> Pick a service<br>people already<br>pay for.`, card: step1Card, capClass: "sm" },
+  { t0: 49.35, t1: 55.45, theme: "light", cap: `<em>Two.</em> Stop selling<br>seats. Sell the<br><em>outcome.</em>`, card: step2Card, capClass: "sm" },
+  { t0: 55.35, t1: 59.35, theme: "dark", cap: `<em>Three.</em> AI does<br>the work. Charge<br>what a service is worth.`, card: step3Card, capClass: "sm" },
+  { t0: 59.25, t1: 64.05, theme: "light", cap: `To them, an agency.<br>To you, software<br>with a <em>6× market.</em>`, card: marketCard, capClass: "sm" },
+  { t0: 63.95, t1: 67.55, theme: "dark", cap: `Sell the<br><em>autopilot,</em><br>not the copilot.`, card: autoCard },
+  { t0: 67.45, t1: 70.15, theme: "dark", cap: `comment <em>RIP</em>`, card: ripCard },
+  { t0: 70.05, t1: 72.30, theme: "light", fadeOut: 0, end: true, cap: `hyper scale companies<br>with <em>short-form</em><br>content like this.`, card: endCard, capClass: "sm" }
+];
+
+const avatar = document.getElementById("avatar");
+const logo = document.getElementById("logo");
+const bgDark = document.getElementById("bg-dark");
+const squares = document.getElementById("squares");
+const scenesRoot = document.getElementById("scenes");
+
+POSES.forEach((name) => {
+  const img = document.createElement("img");
+  img.src = `assets/avatar-${name}.png`;
+  img.dataset.pose = name;
+  img.alt = "";
+  img.style.opacity = "0";
+  avatar.appendChild(img);
+});
+
+const sqSpecs = [
+  [80, 180, 54], [920, 260, 36], [40, 640, 28], [980, 720, 48],
+  [140, 980, 22], [900, 1100, 40], [60, 1400, 34], [960, 1500, 26],
+  [200, 420, 18], [860, 480, 24], [500, 200, 16], [70, 1680, 44]
+];
+sqSpecs.forEach(([x, y, s], i) => {
+  const d = document.createElement("div");
+  d.className = "sq";
+  d.style.width = s + "px";
+  d.style.height = s + "px";
+  d.dataset.x = x;
+  d.dataset.y = y;
+  d.dataset.i = i;
+  squares.appendChild(d);
+});
+
+SCENES.forEach((s, idx) => {
+  const el = document.createElement("div");
+  el.className = "scene";
+  el.style.zIndex = String(4 + idx);
+  const cap = document.createElement("div");
+  cap.className = "cap" + (s.capClass ? " " + s.capClass : "") + (s.theme === "dark" ? " on-dark-cap" : "");
+  cap.innerHTML = s.cap;
+  const wrap = document.createElement("div");
+  wrap.className = "card-wrap";
+  wrap.innerHTML = s.card;
+  el.appendChild(cap);
+  el.appendChild(wrap);
+  scenesRoot.appendChild(el);
+  s.el = el;
+});
+
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function smooth(x) {
+  x = clamp(x, 0, 1);
+  return x * x * (3 - 2 * x);
+}
+function seg(t, a, b, fadeIn, fadeOut) {
+  if (t < a || t > b) return 0;
+  const inn = fadeIn <= 0 ? 1 : smooth((t - a) / fadeIn);
+  const out = fadeOut <= 0 ? 1 : smooth((b - t) / fadeOut);
+  return Math.min(inn, out);
+}
+
+function poseWeights(t) {
+  const FADE = 0.7;
+  const w = Object.fromEntries(POSES.map((p) => [p, 0]));
+  const last = POSE_AT.length - 1;
+  for (let i = 0; i < POSE_AT.length; i++) {
+    const t0 = POSE_AT[i][0];
+    const t1 = i < last ? POSE_AT[i + 1][0] : 1000;
+    const lead = i === 0 ? 0 : FADE;
+    if (t < t0 - lead || t >= t1) continue;
+    const fadeIn = i === 0 ? 1 : smooth((t - (t0 - FADE)) / FADE);
+    const fadeOut = i === last ? 1 : smooth((t1 - t) / FADE);
+    w[POSE_AT[i][1]] = Math.min(fadeIn, fadeOut);
+  }
+  const sum = Object.values(w).reduce((a, b) => a + b, 0) || 1;
+  for (const k in w) w[k] /= sum;
+  return w;
+}
+
+function renderFrame(t) {
+  let dark = 0;
+  let endA = 0;
+  for (const s of SCENES) {
+    const fadeIn = s.t0 < 0.05 ? 0.35 : 0.52;
+    const fadeOut = s.fadeOut === 0 ? 0 : 0.5;
+    const a = seg(t, s.t0, s.t1, fadeIn, fadeOut);
+    const enter = smooth(clamp((t - s.t0) / 0.6, 0, 1));
+    s.el.style.opacity = a.toFixed(4);
+    s.el.style.transform = `translateY(${((1 - enter) * 34).toFixed(2)}px)`;
+    if (s.theme === "dark") dark += a;
+    if (s.end) endA = a;
+  }
+  dark = clamp(dark, 0, 1);
+  bgDark.style.opacity = dark.toFixed(4);
+  logo.style.opacity = (1 - endA).toFixed(4);
+  logo.classList.toggle("on-dark", dark > 0.45);
+
+  for (const sq of squares.children) {
+    const i = Number(sq.dataset.i);
+    const x = Number(sq.dataset.x) + Math.sin(t * 0.22 + i) * 18;
+    const y = Number(sq.dataset.y) + Math.cos(t * 0.16 + i * 0.8) * 16;
+    sq.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    sq.style.background = dark > 0.45 ? "#2c3548" : "#d7dee8";
+    sq.style.opacity = dark > 0.45 ? "0.55" : "0.9";
+  }
+
+  const weights = poseWeights(t);
+  const bob = Math.sin(t * 1.15) * 7;
+  const drop = endA * 120;
+  avatar.style.transform = `translateX(-50%) translateY(${(bob + drop).toFixed(2)}px)`;
+  for (const img of avatar.children) {
+    img.style.opacity = (weights[img.dataset.pose] || 0).toFixed(4);
+  }
+}
+
+window.renderFrame = renderFrame;
+renderFrame(0);
+</script>
+</body>
+</html>
