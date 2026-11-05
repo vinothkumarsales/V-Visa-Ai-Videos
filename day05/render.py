@@ -101,6 +101,25 @@ def draw_avatar(img, cx, cy, size, mood, t, flip=False):
     sc = size / 300 * (1 + 0.02 * math.sin(t * 9))
     put(img, a, cx, cy + bob, sc)
 
+@functools.lru_cache(None)
+def sticker(name, h=520):
+    im = Image.open(f"stickers/{name}.png").convert("RGBA")
+    im = im.resize((int(im.width * h / im.height), h), Image.LANCZOS)
+    # white die-cut outline
+    a = im.getchannel("A").filter(ImageFilter.MaxFilter(15)).filter(ImageFilter.GaussianBlur(1.5))
+    out = Image.new("RGBA", im.size, (255, 255, 255, 0)); out.putalpha(a)
+    w = Image.new("RGBA", im.size, (255, 255, 255, 255)); w.putalpha(a)
+    w.alpha_composite(im)
+    big = Image.new("RGBA", (im.width * S, im.height * S)); big.paste(w.resize(big.size, Image.LANCZOS))
+    return big
+
+def draw_sticker(img, name, cx, cy, h, t, t0=0.0, flip=False):
+    k = back(seg(t, t0, t0 + .5))
+    st = sticker(name, h)
+    if flip: st = st.transpose(Image.FLIP_LEFT_RIGHT)
+    sh = math.sin(t * 38) * 4 * (1 if name == "angry" else 0) * (seg(t, t0 + .5, t0 + .6) > 0)
+    put(img, st, cx + sh, cy + (1 - k) * 500 + math.sin(t * 4) * 6, k, rot=math.sin(t * 3) * 3)
+
 # ---------- icon objects ----------
 @functools.lru_cache(None)
 def logo_badge():
@@ -222,7 +241,13 @@ def caption(img, t):
         active = wd["t"] <= t < wd["t"] + wd["d"] + 0.18
         col = YEL if (active or t >= wd["t"] and j == len(words) - 1 and False) else WHT
         if t >= wd["t"] and not active and False: col = WHT
-        d.text((x + wl / 2, 110), w, size, col, stroke=11, sfill=(18, 12, 44))
+        wk = back((t - wd["t"]) / .2) if t >= wd["t"] else 0.0
+        if t >= wd["t"] and wk < 1.0 or active:
+            pass
+        wy = 110 - (8 * math.sin(clamp((t - wd["t"]) / .25) * math.pi) if t >= wd["t"] else 0)
+        d.text((x + wl / 2, wy), w, size, col, stroke=11, sfill=(18, 12, 44))
+        if active:
+            d.rect((x, 178, x + wl, 190), 6, fill=col)
         x += wl + 26
     put(img, d.get(), W / 2, 395, k, rot=(1 - k) * -3)
 
@@ -429,7 +454,7 @@ def s_warn(img, t):
     put(img, d.get(), 540, 780, k)
     sk = seg(t, 2.35, 2.7)
     if sk > 0: put(img, stamp_obj("NOT GUARANTEED", COR, 860, 160, 70), 540, 1130, 2.0 - 1.0 * ease_out(sk), -6, ease_out(sk * 2))
-    draw_avatar(img, 190, 1380, 280, "shock", t)
+    draw_sticker(img, "angry", 200, 1290, 380, t, 0.2)
 
 def s_official(img, t):
     k = back(seg(t, 0, .4))
@@ -505,25 +530,66 @@ def opener(img, t):
     label(ov, "AUSTRALIA 189", 540, 1130, PINK, WHT, 56, back(seg(t, 1.0, 1.4)))
     img.alpha_composite(ov, (0, int(-ex * H * 1.1)) if False else (0, 0)) if ex <= 0 else img.alpha_composite(ov.crop((0, 0, W, H)), (0, int(-ex * H)))  # slide up
 
+HITS = [OFF + 9.5, OFF + 11.5, OFF + 39.4, OFF + 19.3, OFF + 22.5, OFF + 26.4, OFF + 31.0, OFF + 35.0, OFF + 47.9]
+BOUNDS = [OFF + sc[0] for sc in SCENES[1:]]
+
+def camera(layer, T, lt):
+    z = 1 + 0.09 * (1 - ease_out(seg(lt, 0, .45))) + 0.012 * min(lt, 6) / 6
+    dx = dy = 0.0
+    for h in HITS:
+        dt = T - h
+        if 0 <= dt < .35:
+            dx += math.sin(dt * 90) * 14 * (1 - dt / .35); dy += math.cos(dt * 75) * 10 * (1 - dt / .35)
+            z += 0.035 * (1 - dt / .35)
+    if z == 1 and not dx: return layer
+    nw, nh = int(W * z), int(H * z)
+    r = layer.resize((nw, nh), Image.BILINEAR)
+    cx, cy = 540 * z, 1000 * z
+    ox = int(cx - 540 - dx); oy = int(cy - 1000 - dy)
+    ox = max(0, min(nw - W, ox)); oy = max(0, min(nh - H, oy))
+    return r.crop((ox, oy, ox + W, oy + H))
+
+def fx(img, T):
+    d = ImageDraw.Draw(img, "RGBA")
+    for h in HITS:
+        dt = T - h
+        if 0 <= dt < .45:
+            p = ease_out(dt / .45)
+            for k in range(18):
+                a = k * math.pi / 9 + .2
+                r0 = 120 + 520 * p; r1 = r0 + 160 * (1 - p) + 20
+                d.line([(540 + math.cos(a) * r0, 980 + math.sin(a) * r0), (540 + math.cos(a) * r1, 980 + math.sin(a) * r1)],
+                       fill=(255, 255, 255, int(200 * (1 - p))), width=8)
+    for bt in BOUNDS:
+        dt = T - bt
+        if -0.05 <= dt < .38:
+            p = clamp((dt + .05) / .43); x = -W + (2 * W + 300) * ease_out(p) if False else -500 + (W + 1000) * p
+            col = [YEL, TEAL, PINK][int(bt) % 3]
+            d.polygon([(x, 0), (x + 260, 0), (x - 140, H), (x - 400, H)], fill=col + (150,))
+            d.polygon([(x + 300, 0), (x + 380, 0), (x - 20, H), (x - 100, H)], fill=(255, 255, 255, 120))
+
 def frame(i):
     T = i / FPS
-    img = bg(T)
     t = T - OFF
+    img = bg(T)
     if t >= 0:
         fn, lt = scene_for(t)
-        fn(img, lt)
+        layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        fn(layer, lt)
+        layer = camera(layer, T, lt)
+        img.alpha_composite(layer)
         ladder(img, t)
         caption(img, t)
+        fx(img, T)
     if T < OFF + .4:
         opener(img, T)
-    put(img, logo_badge(), 60 + 190, 120, 1.0)
+    put(img, logo_badge(), 60 + 190 + 4 * math.sin(T * 3), 120, 1.0 + 0.02 * math.sin(T * 5))
     d = ImageDraw.Draw(img)
     f = font(40)
     if t >= 0 and t < 45.4:
         d.text((W - 60, 105), "DAY 05  |  AUSTRALIA", font=f, fill=WHT, anchor="rm", stroke_width=6, stroke_fill=INK)
     if t >= 0:
         d.text((W / 2, 1850), "vvisa.in", font=font(44), fill=(255, 255, 255, 200), anchor="mm")
-    # tiny note while explaining
     return img.convert("RGB").tobytes()
 
 if __name__ == "__main__":
